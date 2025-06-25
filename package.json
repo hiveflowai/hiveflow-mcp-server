@@ -1,6 +1,6 @@
 {
   "name": "@hiveflow/mcp-server",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Model Context Protocol server for HiveFlow - Automate workflows and manage flows from any MCP-compatible AI assistant",
   "main": "src/index.js",
   "bin": {
