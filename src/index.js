@@ -200,6 +200,40 @@ class HiveFlowMCPServer {
               },
               required: ['flowId']
             }
+          },
+          {
+            name: 'blurb_set_emotion',
+            description: 'Muestra una emoción en Blurb, la mascota física de HiveFlow (pantalla RP2350). Requiere el blurb-bridge local o la placa por USB.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                emotion: {
+                  type: 'string',
+                  description: 'Una de: normal, happy, glee, excited, proud, love, shy, sad, crying, worried, scared, frustrated, annoyed, angry, furious, disgusted, unimpressed, bored, tired, sleepy, sleeping, closed, focused, determined, suspicious, skeptic, squint, curious, confused, thinking, surprised, awe, mischievous, embarrassed, dizzy, dead'
+                },
+                ms: {
+                  type: 'number',
+                  description: 'Duración en milisegundos (por defecto 3000)'
+                }
+              },
+              required: ['emotion']
+            }
+          },
+          {
+            name: 'blurb_set_state',
+            description: 'Cambia el estado base de Blurb (la mascota física): idle, running, thinking, listening, speaking, success, error, offline, low-credits, paused, loading, saving, waiting, not-found, crashed.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                state: { type: 'string', description: 'Estado de HiveFlow a reflejar' }
+              },
+              required: ['state']
+            }
+          },
+          {
+            name: 'blurb_status',
+            description: 'Estado del blurb-bridge y de la placa de Blurb (firmware, estado actual, últimos eventos de touch/movimiento).',
+            inputSchema: { type: 'object', properties: {} }
           }
         ]
       };
@@ -229,6 +263,12 @@ class HiveFlowMCPServer {
             return await this.createMCPServer(args);
           case 'get_flow_executions':
             return await this.getFlowExecutions(args);
+          case 'blurb_set_emotion':
+            return await this.blurbSend('/emotion', { v: args.emotion, ms: args.ms }, { t: 'emotion', v: args.emotion, ms: args.ms || 3000 });
+          case 'blurb_set_state':
+            return await this.blurbSend('/state', { v: args.state }, { t: 'state', v: args.state });
+          case 'blurb_status':
+            return await this.blurbStatus();
           default:
             throw new Error(`Herramienta desconocida: ${name}`);
         }
@@ -738,6 +778,44 @@ class HiveFlowMCPServer {
         }
       ]
     };
+  }
+
+  // ─── Blurb (mascota física): bridge local en http://127.0.0.1:4243, o la placa por USB ───
+  blurbBridgeUrl() {
+    return process.env.HIVEFLOW_BLURB_URL || `http://127.0.0.1:${process.env.BLURB_BRIDGE_PORT || 4243}`;
+  }
+
+  blurbSerialPath() {
+    const fs = require('fs');
+    for (const dir of ['/dev']) {
+      try {
+        const hit = fs.readdirSync(dir).find(n => /^cu\.usbmodem|^ttyACM/.test(n));
+        if (hit) return `${dir}/${hit}`;
+      } catch (e) { /* sin /dev (Windows) */ }
+    }
+    return null;
+  }
+
+  async blurbSend(path, body, rawLine) {
+    try {
+      const res = await axios.post(`${this.blurbBridgeUrl()}${path}`, body, { timeout: 2000 });
+      return { content: [{ type: 'text', text: `✅ Blurb: ${JSON.stringify(body)} (via bridge) ${JSON.stringify(res.data)}` }] };
+    } catch (e) {
+      const dev = this.blurbSerialPath();
+      if (!dev) throw new Error('no hay blurb-bridge en ' + this.blurbBridgeUrl() + ' ni placa por USB. Arranca `npx @hiveflow/blurb-bridge` o la app de escritorio → Ajustes → Hardware.');
+      require('fs').writeFileSync(dev, JSON.stringify(rawLine) + '\n');
+      return { content: [{ type: 'text', text: `✅ Blurb: ${JSON.stringify(rawLine)} (directo a ${dev})` }] };
+    }
+  }
+
+  async blurbStatus() {
+    try {
+      const res = await axios.get(`${this.blurbBridgeUrl()}/status`, { timeout: 2000 });
+      return { content: [{ type: 'text', text: JSON.stringify(res.data, null, 2) }] };
+    } catch (e) {
+      const dev = this.blurbSerialPath();
+      return { content: [{ type: 'text', text: JSON.stringify({ bridge: false, board: dev, hint: dev ? 'placa conectada, sin bridge (modo directo)' : 'sin bridge ni placa' }, null, 2) }] };
+    }
   }
 
   async getFlowExecutions(args) {
