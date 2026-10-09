@@ -1,182 +1,78 @@
-# @hiveflow/mcp-server
+# @hiveflow/mcp-server — deprecated
 
-Official Model Context Protocol (MCP) server for HiveFlow. Connect your AI assistants (Claude, Cursor, etc.) directly to your HiveFlow automation platform.
+> **This package is no longer maintained.** Use the hosted Hiveflow MCP server instead:
+>
+> ## `https://mcp.hiveflow.ai`
 
-## 🚀 Quick Start
+The hosted server is always up to date with the platform, signs you in with OAuth (no API key to copy), and needs nothing installed. This repository is archived and the npm package will not receive updates.
 
-### Installation
+*Español: este paquete está deprecado. Usa el MCP remoto `https://mcp.hiveflow.ai`; las instrucciones de abajo sirven igual.*
+
+## Connect your client
+
+**Claude (web, Desktop, mobile)** — Settings → Connectors → *Add custom connector* → URL `https://mcp.hiveflow.ai`.
+
+**Claude Code**
 
 ```bash
-npm install -g @hiveflow/mcp-server
+claude mcp add --transport http hiveflow https://mcp.hiveflow.ai
 ```
 
-### Configuration
+**ChatGPT** — Settings → Apps & Connectors → add a connector with the URL `https://mcp.hiveflow.ai`.
 
-Add to your MCP client configuration (e.g., `.cursor/mcp.json`):
+**Cursor** (`~/.cursor/mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "hiveflow": { "url": "https://mcp.hiveflow.ai" }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`)
+
+```json
+{
+  "servers": {
+    "hiveflow": { "type": "http", "url": "https://mcp.hiveflow.ai" }
+  }
+}
+```
+
+**Clients that only support stdio** — bridge with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
 
 ```json
 {
   "mcpServers": {
     "hiveflow": {
       "command": "npx",
-      "args": ["-y", "@hiveflow/mcp-server"],
-      "env": {
-        "HIVEFLOW_API_KEY": "your-api-key-here",
-        "HIVEFLOW_API_URL": "https://api.hiveflow.ai"
-      }
+      "args": ["-y", "mcp-remote", "https://mcp.hiveflow.ai"]
     }
   }
 }
 ```
 
-### For Local Development
+## Headless use (scripts, CI)
 
-```json
-{
-  "mcpServers": {
-    "hiveflow": {
-      "command": "npx",
-      "args": ["-y", "@hiveflow/mcp-server"],
-      "env": {
-        "HIVEFLOW_API_KEY": "your-api-key-here",
-        "HIVEFLOW_API_URL": "http://localhost:5000"
-      }
-    }
-  }
-}
-```
-
-## 🔑 Getting Your API Key
-
-### Option 1: From HiveFlow Dashboard
-1. Log in to your HiveFlow dashboard
-2. Go to Settings > API Keys
-3. Generate a new API key
-
-### Option 2: From Command Line (Self-hosted)
-```bash
-cd your-hiveflow-backend
-node get-api-key.js your-email@example.com
-```
-
-## 🛠️ Available Tools
-
-Once configured, you'll have access to these tools in your AI assistant:
-
-### Flow Management
-- `create_flow` - Create new automation flows
-- `list_flows` - List all your flows
-- `get_flow` - Get details of a specific flow
-- `execute_flow` - Execute a flow with optional inputs
-- `pause_flow` - Pause an active flow
-- `resume_flow` - Resume a paused flow
-- `get_flow_executions` - Get execution history
-
-### MCP Server Management
-- `list_mcp_servers` - List configured MCP servers
-- `create_mcp_server` - Register new MCP servers
-
-## 📊 Available Resources
-
-- `hiveflow://flows` - Access to all your flows data
-- `hiveflow://mcp-servers` - MCP servers configuration
-- `hiveflow://executions` - Flow execution history
-
-## 💡 Usage Examples
-
-### Create a New Flow
-```
-AI: "Create a flow called 'Email Processor' that analyzes incoming emails"
-```
-
-### List Active Flows
-```
-AI: "Show me all my active flows"
-```
-
-### Execute a Flow
-```
-AI: "Execute the flow with ID 'abc123' with input data {email: 'test@example.com'}"
-```
-
-### Get Flow Status
-```
-AI: "What's the status of my Email Processor flow?"
-```
-
-## 🔧 Configuration Options
-
-### Environment Variables
-
-- `HIVEFLOW_API_KEY` - Your HiveFlow API key (required)
-- `HIVEFLOW_API_URL` - Your HiveFlow instance URL (default: https://api.hiveflow.ai)
-- `HIVEFLOW_INSTANCE_ID` - Instance ID for multi-tenant setups (optional)
-
-### Command Line Options
+The hosted server also accepts a Hiveflow API key (`hf_...`, created in Settings → API Keys) instead of OAuth:
 
 ```bash
-hiveflow-mcp --api-key YOUR_KEY --api-url https://your-instance.com
+npx -y mcp-remote https://mcp.hiveflow.ai --header "Authorization: Bearer ${HIVEFLOW_API_KEY}"
 ```
 
-## 🏗️ Architecture
+## Migrating from this package
 
-This MCP server acts as a bridge between your AI assistant and HiveFlow:
+| Old tool (this package) | Hosted server |
+|---|---|
+| `list_flows`, `get_flow`, `create_flow` | same names |
+| `execute_flow` | `run_flow` |
+| `pause_flow`, `resume_flow` | `set_flow_state` (`paused` / `active`) |
+| `list_mcp_servers`, `create_mcp_server`, `get_flow_executions` | removed |
+| `blurb_set_emotion`, `blurb_set_state`, `blurb_status` | `hiveflow blurb …` in the [Hiveflow CLI](https://github.com/hiveflowai/hiveflow-cli) (the board is local, a hosted server cannot reach it) |
 
-```
-AI Assistant (Claude/Cursor) ↔ MCP Server ↔ HiveFlow API
-```
+The hosted server adds organizations, workspaces, kanban boards, cards and workers. Ask your assistant to call the `docs` tool for the full API reference.
 
-## 🔒 Security
+## License
 
-- API keys are transmitted securely over HTTPS
-- All requests are authenticated and authorized
-- No data is stored locally by the MCP server
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"HIVEFLOW_API_KEY is required"**
-- Make sure you've set the API key in your MCP configuration
-- Verify the API key is valid and not expired
-
-**"Cannot connect to HiveFlow API"**
-- Check that your HiveFlow instance is running
-- Verify the API URL is correct
-- Ensure there are no firewall restrictions
-
-**"MCP server not found"**
-- Restart your AI assistant completely
-- Verify the MCP configuration file is in the correct location
-- Check that the package is installed: `npm list -g @hiveflow/mcp-server`
-
-### Debug Mode
-
-For detailed logging, set the environment variable:
-```bash
-export DEBUG=hiveflow-mcp:*
-```
-
-## 📚 Documentation
-
-- [HiveFlow Documentation](https://doc.hiveflow.ai)
-- [MCP Protocol Specification](https://modelcontextprotocol.io)
-- [API Reference](https://api.hiveflow.ai/docs)
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- [GitHub Issues](https://github.com/hiveflowai/hiveflow-mcp-server/issues)
-- [Discord Community](https://discord.gg/3cc69VFb)
-- [Email Support](mailto:support@hiveflow.ai)
-
----
-
-Made with ❤️ by the HiveFlow team 
+MIT
